@@ -43,11 +43,17 @@ class OptimizeSwapBeforeMeasure(TransformationPass):
             if getattr(swap.op, "condition", None) is not None:
                 continue
             final_successor = []
+
             for successor in dag.successors(swap):
-                final_successor.append(
-                    isinstance(successor, DAGOutNode)
-                    or (isinstance(successor, DAGOpNode) and isinstance(successor.op, Measure))
-                )
+                if isinstance(successor, DAGOpNode) and isinstance(successor.op, Measure):
+                    # If successor is a Measure, ensure it is followed by a DAGOutNode
+                    if any(isinstance(s, DAGOpNode) for s in dag.successors(successor)):
+                        final_successor.append(False)
+                    else:
+                        final_successor.append(True)
+                else:
+                    final_successor.append(isinstance(successor, DAGOutNode))
+
             if all(final_successor):
                 # the node swap needs to be removed and, if a measure follows, needs to be adapted
                 swap_qargs = swap.qargs
